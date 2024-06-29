@@ -16,14 +16,14 @@ process_input :: proc(window: glfw.WindowHandle) {
 
 main :: proc() {
 	glfw.Init()
-	window := glfw.CreateWindow(800, 600, "LearnOpenGL", nil, nil)
 	defer glfw.Terminate()
-	defer glfw.DestroyWindow(window)
 
+	window := glfw.CreateWindow(800, 600, "LearnOpenGL", nil, nil)
 	if window == nil {
 		fmt.println("Failed to create GLFW window")
 		return
 	}
+	defer glfw.DestroyWindow(window)
 
 	glfw.MakeContextCurrent(window)
 	gl.load_up_to(4, 5, glfw.gl_set_proc_address)
@@ -35,50 +35,32 @@ main :: proc() {
 	gl.ShaderSource(vertex_shader, 1, &vertex_shader_source, nil)
 	gl.CompileShader(vertex_shader)
 
-	success: i32
-	gl.GetShaderiv(vertex_shader, gl.COMPILE_STATUS, &success)
-	if !bool(success) {
-		fmt.println("ERROR - shader vertex compilation failed")
+	shader_program, success := gl.load_shaders("./shaders/vert.glsl", "./shaders/frag.glsl")
+	if !success {
+		fmt.println("Error loading shaders")
+		return
 	}
+	defer gl.DeleteProgram(shader_program)
 
-	fragment_shader := gl.CreateShader(gl.FRAGMENT_SHADER)
-	fragment_shader_source := #load("shaders/frag.glsl", cstring)
-	gl.ShaderSource(fragment_shader, 1, &fragment_shader_source, nil)
-	gl.CompileShader(fragment_shader)
-
-	gl.GetShaderiv(fragment_shader, gl.COMPILE_STATUS, &success)
-	if !bool(success) {
-		fmt.println("ERROR - shader fragment compilation failed")
-	}
-
-	shader_program := gl.CreateProgram()
-	gl.AttachShader(shader_program, vertex_shader)
-	gl.AttachShader(shader_program, fragment_shader)
-	gl.LinkProgram(shader_program)
-
-	gl.GetProgramiv(shader_program, gl.LINK_STATUS, &success)
-	if !bool(success) {
-		fmt.println("ERROR - shader shader linking failed")
-	}
-
-	gl.DeleteShader(vertex_shader)
-	gl.DeleteShader(fragment_shader)
-
-	vertices := []f32{-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0}
+	vertices := [?]f32{-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0}
 
 	vbo, vao: u32
-	gl.GenVertexArrays(1, &vao)
 	gl.GenBuffers(1, &vbo)
+	defer gl.DeleteBuffers(1, &vbo)
+
+	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices), &vertices, gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, size_of(vertices), &vertices, gl.STATIC_DRAW)
 
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 3 * size_of(f32), 0)
 	gl.EnableVertexAttribArray(0)
 
 	for !glfw.WindowShouldClose(window) {
+		glfw.PollEvents()
 		process_input(window)
+
 		gl.ClearColor(0.5, 0, 1, 1)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
@@ -87,6 +69,5 @@ main :: proc() {
 		gl.DrawArrays(gl.TRIANGLES, 0, 3)
 
 		glfw.SwapBuffers(window)
-		glfw.PollEvents()
 	}
 }
